@@ -1,57 +1,127 @@
 # Oscar Priego
 
-**Senior Systems Software Engineer | Linux • Compilers • Performance • Open Source**
+**Senior Systems Software Engineer | Linux • LLVM • Compilers • Performance • Open Source**
 
-Systems software engineer with professional experience across Linux kernel debugging, low-level C/C++ development, CPU validation infrastructure, embedded systems, AI/GPU software infrastructure, and firmware tooling.
+Systems software engineer focused on low-level software, Linux, compiler/toolchain engineering, hardware-aware debugging, and open-source development.
 
-My current technical focus is the intersection of **Linux, compiler/toolchain engineering, hardware-aware optimization, and upstream open-source development**.
+My professional background spans **Linux kernel debugging, CPU validation infrastructure, embedded systems, AI accelerator/GPU software, firmware tooling, and C/C++ systems development**.
+
+A recurring theme throughout my work is turning an initially ambiguous hardware/software problem into a **reproducible failure, evidence-based root cause, validated fix, and regression coverage**.
 
 ---
 
-## Open Source & Upstream Work
+## Selected Open Source Work
 
-### Linux Kernel
+### 🐧 Linux Kernel — HID
 
-Working with the upstream Linux kernel contribution workflow, including:
+**[HID: elecom: fix bus type for M-XGL20DLBK](https://github.com/Opriego/linux/commit/ebdb82b3bd3c)**
 
-* hardware and driver investigation
-* HID subsystem debugging
-* root-cause analysis from device and kernel behavior
-* patch development
-* `git format-patch` / `git send-email` workflow
-* communication through Linux kernel mailing lists
+Linux HID fix for an ELECOM device whose special-driver entry used the wrong HID bus matcher.
 
-Recent work includes an upstream HID patch for ELECOM hardware.
+The device is handled as USB, but its entry in `hid_have_special_driver[]` used `HID_BLUETOOTH_DEVICE`, preventing the expected special-driver match.
 
-### LLVM / X86
+The patch changes the entry to `HID_USB_DEVICE` and was prepared using the standard Linux kernel patch/submission workflow.
 
-**[llvm/llvm-project PR #216884 — Prefer VPMOVMSKB for nonnegative byte comparison masks](https://github.com/llvm/llvm-project/pull/216884)**
+**Demonstrates:**
 
-X86 backend optimization for signed byte comparison masks.
+* Linux kernel source investigation
+* HID/device matching
+* root-cause analysis
+* minimal corrective patches
+* `Fixes:` / `Signed-off-by` conventions
+* upstream mailing-list workflow
 
-The change extends the existing MOVMSK lowering path for `v16i8` and `v32i8` comparisons so that non-negative sign tests can use `VPMOVMSKB` followed by `NOT` instead of generating an AVX-512 comparison into a mask register and transferring the result back to a GPR.
+**Source branch:** [hid-elecom-m-xgl20dlbk-submitted](https://github.com/Opriego/linux/tree/hid-elecom-m-xgl20dlbk-submitted)
 
-Work included:
+---
 
-* SelectionDAG / X86 lowering analysis
-* instruction-selection investigation
-* generated assembly comparison
-* AVX2 and AVX-512 behavior
-* LLVM CodeGen regression tests
-* `FileCheck` validation
-* upstream contribution workflow
+### ⚙️ LLVM / X86 Backend
 
-**Fork:** [Opriego/llvm-project](https://github.com/Opriego/llvm-project)
+**[llvm/llvm-project #216884 — Fold AVX-512 sign-mask compares to MOVMSK](https://github.com/llvm/llvm-project/pull/216884)**
+
+Upstream LLVM X86 backend contribution targeting AVX-512 sign-mask generation.
+
+The transformation recognizes complementary signed sign-test masks produced through `VPCMP*` + `KMOV` and folds appropriate 128-bit and 256-bit cases into the corresponding MOVMSK instruction:
+
+```text
+VPCMPB + KMOV  →  VPMOVMSKB
+VPCMPD + KMOV  →  VMOVMSKPS
+VPCMPQ + KMOV  →  VMOVMSKPD
+```
+
+with the required mask complement.
+
+The implementation operates in `X86CompressEVEX` and includes checks for mask width, consumers, source clobbers, register constraints, and EFLAGS liveness.
+
+Regression coverage includes both end-to-end CodeGen tests and dedicated MIR tests for positive and negative cases such as:
+
+* multiple mask consumers
+* narrowing `KMOV`
+* source clobbers
+* unsupported predicates/constants
+* 512-bit vectors
+* extended registers
+* live EFLAGS
+* incompatible masked-move consumers
+* incorrect producer widths
+* dead destinations
+
+**Demonstrates:**
+
+* LLVM backend development
+* X86 instruction selection / machine-level optimization
+* AVX2 / AVX-512 reasoning
+* MIR and CodeGen testing
+* liveness and register constraints
+* assembly-level validation
+* upstream review workflow
+
+---
+
+## Systems Programming in C
+
+### 🔧 [c-systems-lab](https://github.com/Opriego/c-systems-lab)
+
+A C17 systems-programming laboratory focused on making low-level engineering decisions explicit and testable.
+
+Implemented components include:
+
+* arena allocator with alignment and overflow protection
+* failure-safe dynamic vector
+* preallocated ring buffer
+* validated binary protocol codec
+* endian-aware framing and checksums
+* robust POSIX file-descriptor I/O
+* partial-read/write and `EINTR` handling
+* `fork` / `exec` / `dup2` / pipes / `waitpid`
+* bounded pthread thread pool
+* IPv4/IPv6 TCP networking
+* integrated systems demo server
+
+Engineering validation includes:
+
+* GCC and Clang strict-warning builds
+* AddressSanitizer
+* UndefinedBehaviorSanitizer
+* ThreadSanitizer
+* Valgrind integration
+* `clang-tidy`
+* `clang-format`
+* CTest
+* libFuzzer target
+* GitHub Actions CI
+
+The project emphasizes **explicit ownership, failure-path correctness, resource cleanup, bounded input handling, documented invariants, and predictable behavior under failure**.
 
 ---
 
 ## Compiler Engineering
 
-### [Ocelotl Tensor Compiler](https://github.com/Opriego/ocelotl-tensor)
+### 🧠 [Ocelotl Tensor Compiler](https://github.com/Opriego/ocelotl-tensor)
 
-Experimental tensor-oriented compiler written in **C++20**, built as a practical compiler and systems engineering project.
+Experimental compiler written in **C++20** for exploring an end-to-end compiler pipeline from source analysis through LLVM IR generation.
 
-Current pipeline:
+Current architecture:
 
 ```text
 Source
@@ -63,110 +133,197 @@ Parser
 AST
   ↓
 Semantic Analysis
+  ├─ symbol resolution
+  ├─ type inference
+  ├─ shape inference
+  └─ validation
   ↓
-Type & Shape Inference
+Ocelotl IR
+(SSA-inspired)
   ↓
-Ocelotl SSA-inspired IR
+LLVM Lowering
+  ↓
+llvm::Module
+  ↓
+LLVM Verifier
   ↓
 LLVM IR
-  ↓
-Native Code
 ```
 
-Implemented areas include:
+Current functionality includes:
 
-* recursive-descent parsing
+* recursive-descent parser
 * source-aware diagnostics
-* AST construction
-* symbol resolution
+* AST representation
 * semantic analysis
-* type inference
+* symbol resolution
+* scalar type inference
 * tensor shape inference
-* SSA-inspired intermediate representation
-* LLVM-based code generation
+* `matmul` and `relu` semantic validation
+* custom SSA-inspired IR
+* LLVM backend for scalar programs
 * LLVM module verification
-* command-line compiler frontend
-* GoogleTest coverage
-* GCC / Clang CI matrix
+* automated tests
+* GCC / Clang CI
 * CMake + Ninja
-* Debian packaging with `debhelper`
+* Debian packaging
+* command-line compiler frontend
 
-Current backend work lowers scalar programs into valid LLVM IR, with tensor lowering and further CPU/GPU code generation forming the next major milestones.
+The frontend and semantic model are intentionally separated from LLVM-specific lowering, providing a clean boundary between language semantics, intermediate representation, and backend code generation.
 
 ---
 
-## Systems / Automotive Open Source
+## Contributions to Existing Codebases
 
-### [ecutools](https://github.com/Opriego/ecutools)
+### 🚗 [ecutools](https://github.com/Opriego/ecutools)
 
-Contributing fixes to an existing C-based automotive diagnostics and connectivity project involving CAN, J2534 and Linux/POSIX systems programming.
+Contributions to an existing C-based automotive diagnostics and connectivity codebase involving CAN, J2534, Linux/POSIX APIs, and AWS IoT integration.
 
-**[View my upstream pull requests](https://github.com/jeremyhahn/ecutools/pulls?q=is%3Apr+author%3AOpriego)**
+**[View upstream pull requests](https://github.com/jeremyhahn/ecutools/pulls?q=is%3Apr+author%3AOpriego)**
 
 Recent work includes:
 
 * CAN frame comparison correctness
 * socket bind failure handling
 * shutdown semantics
-* pointer/resource lifecycle fixes
-* J2534 parameter validation
-* transactional `PassThruOpen` / `PassThruClose` resource lifecycle
+* resource-lifecycle fixes
+* NULL parameter validation
+* transactional J2534 `PassThruOpen` / `PassThruClose` lifecycle
 * unit-test coverage
 
-The emphasis of these contributions is not only fixing individual defects, but improving **error handling, resource ownership, lifecycle correctness, testability, and failure-path behavior** in an existing C codebase.
+The focus is not only on individual bugs, but on improving **resource ownership, failure paths, error propagation, lifecycle correctness, and testability** in an unfamiliar existing codebase.
+
+---
+
+## Historical Engineering Work
+
+### 🗄️ [Ocelotl SGBDD](https://github.com/Opriego/ocelotl_SGBDD)
+
+Historical distributed database management system originally developed in **2012**.
+
+The project implemented:
+
+* a hand-written SQL-like lexer and syntax analyzer
+* token-stream processing
+* distributed data dictionary
+* query routing and rewriting
+* heterogeneous database adapters
+* node availability checks
+* prototype coordinated commit/rollback
+* GTK-based user interface
+
+The repository is intentionally preserved as a historical artifact rather than rewritten as modern software.
+
+It also documents some of my earliest practical work with concepts that later reappeared in compiler engineering: **lexical classification, token streams, syntax validation, language interpretation, and transformation of an input representation before execution**.
 
 ---
 
 ## Systems Engineering Background
 
-My professional work has included:
+My broader engineering experience includes:
 
 * Linux kernel and driver debugging
-* low-level C and C++ development
-* CPU architecture and platform validation
+* C and C++ systems programming
+* CPU/platform validation
 * large-scale hardware validation infrastructure
-* power and uncore investigation
-* firmware/debug tooling
+* CPU power and uncore investigation
+* firmware and debugging tooling
 * AI accelerator infrastructure
 * GPU software enablement
 * tensor and memory debugging
-* performance-oriented problem solving
+* performance-oriented investigation
+* embedded Linux and cross-compilation
 * production issue reproduction and root-cause analysis
-* cross-functional technical communication
+* technical communication across engineering teams and stakeholders
 
-A recurring theme throughout my work is taking an initially ambiguous hardware/software problem and turning it into a **reproducible failure, evidence-based root cause, validated fix, and maintainable engineering solution**.
+I am particularly comfortable working where the initial report is incomplete and the problem crosses abstraction boundaries:
+
+```text
+Application
+    ↓
+Runtime / libraries
+    ↓
+Compiler / generated code
+    ↓
+Kernel / driver
+    ↓
+Firmware
+    ↓
+Hardware
+```
 
 ---
 
-## Toolchains & Linux
+## Engineering Approach
 
-Areas I actively work with include:
+For difficult systems problems, I generally optimize for:
+
+```text
+Observe
+  ↓
+Reproduce
+  ↓
+Reduce
+  ↓
+Instrument
+  ↓
+Form hypotheses
+  ↓
+Falsify / confirm
+  ↓
+Root cause
+  ↓
+Minimal fix
+  ↓
+Regression coverage
+  ↓
+Document
+```
+
+I value fixes that explain **why the failure occurred**, preserve existing behavior outside the affected case, and leave behind enough test coverage and documentation to make the result maintainable.
+
+---
+
+## Technical Focus
 
 **Languages**
 
 `C` · `C++` · `Python` · `LLVM IR` · `x86 Assembly`
 
-**Compiler / Toolchain**
-
-`LLVM` · `Clang` · `GCC` · `SelectionDAG` · `CMake` · `Ninja`
-
 **Linux / Systems**
 
-`Linux Kernel` · `GDB` · `Buildroot` · `Debian` · `POSIX` · `Git`
+`Linux Kernel` · `POSIX` · `pthreads` · `GDB` · `Git` · `Debian` · `Buildroot`
 
-**Validation**
+**Compiler / Toolchain**
 
-`GoogleTest` · `LLVM lit` · `FileCheck` · `GitHub Actions` · automated regression testing
+`LLVM` · `Clang` · `GCC` · `LLVM MIR` · `CMake` · `Ninja`
 
-**Systems domains**
+**Validation / Quality**
 
-CPU · GPU · AI accelerators · embedded systems · automotive · kernel/driver debugging
+`LLVM lit` · `FileCheck` · `GoogleTest` · `CTest` · `ASan` · `UBSan` · `TSan` · `Valgrind` · `clang-tidy` · `GitHub Actions`
+
+**Domains**
+
+Kernel / drivers · CPU · GPU · AI accelerators · compiler backends · embedded systems · automotive · performance engineering
 
 ---
 
-## What I'm Interested In
+## Selected Repositories
 
-I am particularly interested in engineering work involving:
+| Project                                                         | Focus                                           |
+| --------------------------------------------------------------- | ----------------------------------------------- |
+| **[linux](https://github.com/Opriego/linux)**                   | Linux kernel / upstream patch development       |
+| **[llvm-project](https://github.com/Opriego/llvm-project)**     | LLVM X86 backend contribution                   |
+| **[ocelotl-tensor](https://github.com/Opriego/ocelotl-tensor)** | C++20 compiler / SSA IR / LLVM backend          |
+| **[c-systems-lab](https://github.com/Opriego/c-systems-lab)**   | C17 / POSIX / concurrency / networking / memory |
+| **[ecutools](https://github.com/Opriego/ecutools)**             | Existing C codebase / CAN / J2534 / Linux       |
+| **[ocelotl_SGBDD](https://github.com/Opriego/ocelotl_SGBDD)**   | Historical parser / distributed systems project |
+
+---
+
+## Current Interests
+
+I am particularly interested in engineering roles involving:
 
 * Linux kernel development and debugging
 * upstream open-source development
@@ -181,18 +338,8 @@ I am particularly interested in engineering work involving:
 
 ---
 
-## Selected Repositories
-
-* **[ocelotl-tensor](https://github.com/Opriego/ocelotl-tensor)** — C++20 compiler with custom IR and LLVM backend
-* **[llvm-project](https://github.com/Opriego/llvm-project)** — LLVM upstream development fork
-* **[ecutools](https://github.com/Opriego/ecutools)** — CAN/J2534/Linux systems contributions
-* **[ocelotl_SGBDD](https://github.com/Opriego/ocelotl_SGBDD)** — earlier database/compiler-oriented academic project
-
----
-
-## Contact
-
 **GitHub:** [github.com/Opriego](https://github.com/Opriego)
+**Location:** Guadalajara, Mexico
 
-Based in Guadalajara, Mexico. Open to remote and international systems/open-source engineering opportunities.
+Open to remote and international systems/open-source engineering opportunities.
 
