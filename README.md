@@ -1,303 +1,340 @@
-# Oscar Priego Verdugo
+# Oscar Priego
 
 ### Senior Systems Software Engineer
-**LLVM · Compilers · Linux · GPU · Performance · Open Source**
 
-Senior systems software engineer with ~14 years of experience working close to the hardware/software boundary.
+**Compilers · LLVM · Linux · GPU · Performance · Low-Level Systems · Open Source**
 
-I specialize in turning ambiguous low-level failures into reproducible cases, root causes, minimal fixes, and regression coverage.
+Systems software engineer with ~14 years of experience working across the hardware/software boundary.
 
-My current focus is **compiler engineering and upstream LLVM development**, building on a background in Linux systems, CPU validation, firmware tooling, performance analysis, and low-level C/C++ engineering.
+My background spans **compiler and toolchain engineering, Linux kernel and driver debugging, CPU/platform validation, embedded systems, AI accelerator and GPU software, firmware tooling, performance analysis, and C/C++ systems development**.
 
-> **Open to senior compiler, systems software, GPU compiler, performance, and open-source engineering opportunities.**
->
-> Particularly interested in teams working on **LLVM, GCC, GPU compilers, Linux, heterogeneous computing, and low-level systems software**.
+A recurring theme throughout my work is taking an ambiguous low-level problem and turning it into a **reproducible failure, evidence-based root cause, minimal fix, and regression test**.
 
----
-
-## LLVM Upstream
-
-I actively contribute to [`llvm/llvm-project`](https://github.com/llvm/llvm-project), with multiple production changes already merged upstream across compiler analysis and code generation.
-
-My work currently spans:
-
-- **ValueTracking / compiler analysis**
-- **X86 backend**
-- **SelectionDAG**
-- **Vector legalization**
-- **SIMD and vectorization**
-- **Floating-point correctness**
-- **Code-generation optimization**
-- **Crash-on-valid debugging and reduction**
-
-### Merged upstream
-
-| Area | Contribution | Status |
-| --- | --- | --- |
-| ValueTracking | `llvm.stepvector` known-bits reasoning | **Merged to `main`** |
-| X86 | Non-negative byte-test recognition | **Merged to `main`** |
-| X86 | `minimumnum` / `maximumnum` NaN-sign lowering | **Merged to `main`** |
-| SelectionDAG | `CTTZ_ELTS` legalization / widening correctness | **Merged to `main`** |
-
-These are production LLVM changes developed and reviewed through the normal upstream process.
-
-### Selected LLVM work
-
-#### ValueTracking — `llvm.stepvector` known bits
-
-Extended `computeKnownBits()` reasoning for `llvm.stepvector`, including scalable-vector cases constrained by `vscale_range`.
-
-The additional information enables downstream optimizations to prove properties such as `nuw`, `nsw`, and disjoint bitwise operations that could not previously be established.
-
-The change was reviewed upstream in the ValueTracking area and merged into LLVM `main`.
-
-#### X86 — `minimumnum` / `maximumnum` lowering
-
-Investigated X86 lowering around NaN-sign semantics and implemented target-specific handling while preserving the required floating-point behavior.
-
-The resulting code generation substantially reduced instruction counts across several AVX and AVX-512 cases while preserving NaN and signed-zero semantics.
-
-#### SelectionDAG — vector legalization
-
-Investigated failures involving `llvm.experimental.cttz.elts` and vector type legalization.
-
-Rather than treating the final backend failure as the root cause, I traced the behavior through SelectionDAG legalization and expansion, produced reduced IR reproducers, validated the fix with assertion-enabled LLVM builds, and added targeted regression coverage.
-
-### Current upstream work
-
-I continue to investigate LLVM issues beyond the areas where I already have merged changes.
-
-Current work includes `callbr` / `INLINEASM_BR` output handling in SelectionDAG, where COPY provenance must survive indirect-destination lowering for later landing-pad reconstruction.
-
-I am deliberately building breadth across LLVM's analysis, optimization, and code-generation pipeline rather than concentrating exclusively on one class of fixes.
+> **Open to remote and international opportunities in compiler, GPU, systems software, performance, and open-source engineering.**
 
 ---
 
-## What I Bring to Compiler Engineering
+## Open Source Upstream
 
-My background was not limited to compilers.
+I contribute fixes and improvements to large existing codebases, with an emphasis on understanding the underlying invariants rather than patching symptoms.
 
-I came into compiler development after years of working across systems where failures frequently cross abstraction boundaries:
+### LLVM
 
-- Linux systems and kernel-level debugging
-- CPU validation and test infrastructure
-- Hardware/software failure analysis
-- Firmware and platform tooling
-- Performance-sensitive C/C++
-- Python automation and infrastructure
-- Low-level debugging
-- Reproduction and reduction of complex failures
+Active contributor to [`llvm/llvm-project`](https://github.com/llvm/llvm-project), with **four patches merged to `main`** across compiler analysis and code generation.
 
-That background affects how I approach compiler bugs.
+My upstream work spans:
 
-When generated code is wrong, slow, or crashes, I do not automatically assume the backend is responsible. I follow the evidence through the complete stack.
+* ValueTracking and KnownBits
+* X86 backend optimization
+* floating-point correctness
+* SelectionDAG
+* vector type legalization
+* crash-on-valid debugging
+* SIMD and code-generation analysis
 
-    Application
-        ↓
-    Runtime / libraries
-        ↓
-    Frontend / IR
-        ↓
-    Compiler analysis
-        ↓
-    Optimization
-        ↓
-    Instruction selection
-        ↓
-    ABI / calling convention
-        ↓
-    Kernel
-        ↓
-    Firmware
-        ↓
-    Hardware
+#### Selected contributions
 
-The layer where a failure becomes visible is not necessarily the layer where the bug originated.
+**ValueTracking — `llvm.stepvector` known-bits reasoning**
+
+Extended `computeKnownBits()` reasoning for `llvm.stepvector`, including scalable vectors constrained by `vscale_range`.
+
+The additional information enables downstream transformations to prove properties such as `nuw`, `nsw`, and disjoint bitwise operations.
+
+Reviewed upstream in the ValueTracking area and merged to `main`.
+
+**X86 — non-negative byte-test recognition**
+
+Improved X86 code generation for signed byte-test masks, replacing eligible AVX/AVX-512 compare-and-mask sequences with MOVMSK-based lowering while accounting for register constraints, liveness, consumers, and mask semantics.
+
+Regression coverage includes end-to-end CodeGen and focused MIR cases.
+
+**X86 — `minimumnum` / `maximumnum` NaN handling**
+
+Investigated X86 lowering around NaN and signed-zero semantics and compared the target-specific implementation against LLVM's generic expansion.
+
+Representative measurements showed substantial reductions in generated instruction count while preserving required bit-level semantics:
+
+| Case                    | X86 lowering | Generic expansion |
+| ----------------------- | -----------: | ----------------: |
+| scalar `f32`, AVX       |            7 |                13 |
+| `<4 x float>`           |            7 |                58 |
+| `<8 x float>`           |            7 |               118 |
+| `<16 x float>`, AVX-512 |            7 |               272 |
+
+**SelectionDAG — `CTTZ_ELTS` legalization**
+
+Investigated correctness and crash failures involving `llvm.experimental.cttz.elts`.
+
+One issue involved confusing a vector's **logical lane count** with the width of a helper vector after target legalization. A related investigation exposed an assertion involving irregular fixed-length `i1` vectors and `INSERT_SUBVECTOR`.
+
+The work involved reduced IR reproducers, assertion-enabled builds, SelectionDAG legalization analysis, cross-target validation, and regression coverage.
+
+#### Current LLVM work
+
+I continue to work across LLVM rather than restricting contributions to a single backend or subsystem.
+
+Current investigations include `callbr` / `INLINEASM_BR` handling in SelectionDAG, vectorization, RISC-V, and other correctness and optimization issues.
+
+**LLVM contributions:**
+[Pull requests by Opriego](https://github.com/llvm/llvm-project/pulls?q=is%3Apr+author%3AOpriego)
+
+---
+
+### Linux Kernel
+
+I have also worked through the Linux kernel upstream development workflow.
+
+**HID: ELECOM device matching**
+
+Investigated an ELECOM device whose special-driver entry used the wrong HID bus matcher.
+
+The device operated over USB while the corresponding entry used the Bluetooth matcher, preventing the expected driver selection.
+
+The fix changes the entry to the correct USB matcher and was prepared through the standard kernel patch/submission workflow.
+
+**Areas:** kernel source investigation · HID · device matching · minimal fixes · upstream workflow
+
+---
+
+## Compiler Engineering
+
+### Ocelotl Tensor Compiler
+
+[`ocelotl-tensor`](https://github.com/Opriego/ocelotl-tensor) is an experimental C++20 compiler exploring an end-to-end compilation pipeline:
+
+```
+Source
+  ↓
+Lexer
+  ↓
+Parser
+  ↓
+AST
+  ↓
+Semantic Analysis
+  ├─ symbol resolution
+  ├─ type inference
+  ├─ shape inference
+  └─ validation
+  ↓
+Ocelotl IR
+(SSA-inspired)
+  ↓
+LLVM Lowering
+  ↓
+llvm::Module
+  ↓
+LLVM Verifier
+  ↓
+LLVM IR
+```
+
+Implemented functionality includes:
+
+* recursive-descent parsing
+* source-aware diagnostics
+* AST representation
+* semantic analysis
+* symbol resolution
+* scalar type inference
+* tensor shape inference
+* `matmul` and `relu` semantic validation
+* custom SSA-inspired IR
+* LLVM backend
+* LLVM module verification
+* automated testing
+* GCC / Clang CI
+* CMake + Ninja
+* Debian packaging
+* command-line compiler frontend
+
+The architecture deliberately separates **language semantics, intermediate representation, and LLVM-specific lowering**.
+
+This project complements my LLVM upstream work: one exercises compiler construction from the frontend downward, while the other requires reasoning inside a large production compiler infrastructure.
+
+---
+
+## Systems Programming
+
+### c-systems-lab
+
+[`c-systems-lab`](https://github.com/Opriego/c-systems-lab) is a C17 systems-programming laboratory focused on explicit ownership, failure-path correctness, resource lifecycle, concurrency, networking, and testability.
+
+Implemented components include:
+
+* arena allocator with alignment and overflow protection
+* failure-safe dynamic vector
+* preallocated ring buffer
+* validated binary protocol codec
+* endian-aware framing and checksums
+* robust POSIX file-descriptor I/O
+* partial-read/write and `EINTR` handling
+* `fork` / `exec` / `dup2` / pipes / `waitpid`
+* bounded pthread thread pool
+* IPv4/IPv6 TCP networking
+* integrated systems demo server
+
+Validation includes:
+
+`GCC` · `Clang` · `ASan` · `UBSan` · `TSan` · `Valgrind` · `libFuzzer` · `clang-tidy` · `CTest` · `GitHub Actions`
+
+---
+
+## Contributions to Existing Codebases
+
+### ecutools
+
+Contributions to [`ecutools`](https://github.com/Opriego/ecutools), an existing C automotive diagnostics/connectivity codebase involving CAN, J2534, Linux/POSIX APIs, and IoT integration.
+
+Work includes:
+
+* CAN frame comparison correctness
+* socket bind failure handling
+* shutdown semantics
+* resource-lifecycle fixes
+* NULL parameter validation
+* transactional J2534 `PassThruOpen` / `PassThruClose` lifecycle
+* unit-test integration
+
+This work follows the same pattern as my upstream contributions: **enter an unfamiliar codebase, identify its ownership and behavioral invariants, make the smallest defensible change, and leave regression coverage behind**.
+
+---
+
+## Systems Engineering Background
+
+My broader engineering experience includes:
+
+* Linux kernel and driver debugging
+* C and C++ systems programming
+* CPU/platform validation
+* large-scale hardware validation infrastructure
+* CPU power and uncore investigation
+* firmware and debugging tooling
+* AI accelerator infrastructure
+* GPU software enablement
+* tensor and memory debugging
+* performance investigation
+* embedded Linux and cross-compilation
+* production issue reproduction and root-cause analysis
+
+I am particularly comfortable with failures that cross abstraction boundaries:
+
+```
+Application
+    ↓
+Runtime / libraries
+    ↓
+Compiler / generated code
+    ↓
+Kernel / driver
+    ↓
+Firmware
+    ↓
+Hardware
+```
+
+The layer where a problem becomes visible is not necessarily the layer where it originated.
 
 ---
 
 ## Engineering Approach
 
-My debugging workflow is evidence-driven:
+For difficult compiler and systems problems, I generally work through:
 
-    Observe
-       ↓
-    Reproduce
-       ↓
-    Reduce
-       ↓
-    Instrument
-       ↓
-    Form competing hypotheses
-       ↓
-    Disprove them
-       ↓
-    Find the root cause
-       ↓
-    Implement the smallest correct fix
-       ↓
-    Add regression coverage
-       ↓
-    Upstream review
+```
+Observe
+  ↓
+Reproduce
+  ↓
+Reduce
+  ↓
+Instrument
+  ↓
+Form competing hypotheses
+  ↓
+Falsify / confirm
+  ↓
+Root cause
+  ↓
+Minimal fix
+  ↓
+Regression coverage
+  ↓
+Validate
+  ↓
+Upstream / document
+```
 
-I value **small, explainable changes backed by strong evidence** over large speculative fixes.
+I value fixes that:
 
-A good fix should answer three questions:
+1. explain **why** the failure occurred;
+2. preserve behavior outside the affected case;
+3. minimize the blast radius;
+4. are backed by reproducible evidence; and
+5. leave enough regression coverage to prevent recurrence.
 
-1. **Why did the original behavior fail?**
-2. **Why does this change correct the underlying problem?**
-3. **What prevents the same class of failure from returning?**
+When an implementation choice is questioned during review, I prefer reducing the disagreement to something measurable: **semantics, generated code, instruction counts, target behavior, or a reproducible test**.
 
 ---
 
 ## Technical Focus
 
-### Compilers
-
-- LLVM
-- LLVM IR
-- ValueTracking / KnownBits
-- SelectionDAG
-- X86 code generation
-- RISC-V
-- SIMD and vectorization
-- Vector legalization
-- Floating-point semantics
-- Optimization and legality reasoning
-- ABI-sensitive lowering
-
-### Systems
-
-- C / C++
-- Linux
-- Kernel-level debugging
-- CPU architecture
-- Performance analysis
-- Firmware interaction
-- Hardware/software debugging
-- Assembly
-- GDB / LLDB
-- `perf`
-
-### GPU & Heterogeneous Computing
-
-- GPU compiler architecture
-- Parallel execution models
-- Tensor computation
-- Hardware-aware optimization
-- Compiler/runtime interaction
-- Alternative execution models
-
-### Engineering Infrastructure
-
-- Python
-- CMake
-- Ninja
-- Git
-- CI / regression testing
-- FileCheck
-- llvm-lit
-- Reproducer construction and reduction
-
----
-
-## Independent Research & Projects
-
-Alongside upstream work, I build experimental compiler and systems projects to explore ideas from first principles.
-
-My current research interests include:
-
-- Tensor semantics
-- Parallel execution models
-- Responsibility-based work decomposition
-- Compiler transformation synthesis
-- Semantic verification
-- GPU-oriented execution
-- Deterministic exploration of implementation strategies
-- Systems and game-engine workloads as practical execution-model experiments
-
-I treat these projects as **engineering laboratories** rather than demonstrations: ideas are expected to survive implementation, testing, counterexamples, and measurement.
+| Area                       | Technologies / Domains                                                              |
+| -------------------------- | ----------------------------------------------------------------------------------- |
+| **Languages**              | C · C++ · Python · LLVM IR · x86 Assembly                                           |
+| **Compiler / Toolchain**   | LLVM · Clang · SelectionDAG · ValueTracking · LLVM MIR · FileCheck · llvm-lit · GCC |
+| **Linux / Systems**        | Linux Kernel · POSIX · pthreads · GDB · Buildroot · Debian                          |
+| **Build / Engineering**    | Git · CMake · Ninja · CI · automated testing                                        |
+| **Validation**             | GoogleTest · CTest · ASan · UBSan · TSan · Valgrind · libFuzzer · clang-tidy        |
+| **Architecture / Domains** | x86 · RISC-V · CPU · GPU · AI accelerators · embedded systems · performance         |
 
 ---
 
 ## Selected Repositories
 
-### [`llvm-project`](https://github.com/llvm/llvm-project)
-
-My upstream LLVM contribution work.
-
-Contributions include compiler analysis, code-generation optimization, correctness fixes, SelectionDAG work, and regression coverage.
-
-### Linux / Kernel Work
-
-Low-level Linux and systems work involving kernel behavior, hardware/software interaction, debugging, and performance analysis.
-
-### Compiler & Systems Experiments
-
-My other repositories contain C/C++, compiler, systems, tensor, and hardware/software experiments developed while investigating lower-level engineering problems.
+| Project                                                       | Focus                                                                   |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [`llvm-project`](https://github.com/Opriego/llvm-project)     | LLVM upstream compiler analysis, CodeGen, SelectionDAG and optimization |
+| [`ocelotl-tensor`](https://github.com/Opriego/ocelotl-tensor) | C++20 compiler · frontend · SSA-inspired IR · LLVM backend              |
+| [`linux`](https://github.com/Opriego/linux)                   | Linux kernel · upstream patch development                               |
+| [`c-systems-lab`](https://github.com/Opriego/c-systems-lab)   | C17 · POSIX · memory · processes · concurrency · networking             |
+| [`ecutools`](https://github.com/Opriego/ecutools)             | Existing C codebase · CAN · J2534 · Linux/POSIX                         |
+| [`ocelotl_SGBDD`](https://github.com/Opriego/ocelotl_SGBDD)   | Historical parser / distributed database systems work                   |
 
 ---
 
-## Languages & Tools
+## Current Direction
 
-**Languages**
+I am particularly interested in engineering work involving:
 
-`C` · `C++` · `Python` · `LLVM IR` · `Assembly`
+* LLVM and GCC
+* compiler analysis and optimization
+* compiler backends and instruction selection
+* GPU and heterogeneous compilation
+* CPU/GPU architecture
+* AI/ML compiler infrastructure
+* Linux and low-level systems
+* performance engineering
+* upstream open-source development
+* difficult cross-layer debugging
 
-**Compiler ecosystem**
-
-`LLVM` · `Clang` · `FileCheck` · `llvm-lit`
-
-**Systems**
-
-`Linux` · `GDB` · `LLDB` · `perf` · `objdump`
-
-**Development**
-
-`Git` · `CMake` · `Ninja`
-
-**Architecture**
-
-`x86-64` · `SIMD` · `RISC-V` · `GPU`
-
----
-
-## What I Like Working On
-
-The problems I enjoy most usually begin with:
-
-> **"This should work, but it doesn't — and nobody is quite sure why."**
-
-Compiler correctness bugs, optimizer corner cases, assertion failures, performance anomalies, ABI interactions, hardware/software boundary failures, and problems that require reducing a large system into one precise explanation are the kind of engineering work I gravitate toward.
-
-I am especially interested in roles where **deep debugging, compiler internals, performance, and hardware awareness intersect**.
+My current direction is deeper compiler and GPU work, but I approach those problems with the perspective of a systems engineer who is comfortable following failures all the way from **source code to generated instructions to kernel, firmware, and hardware behavior**.
 
 ---
 
 ## Open to Opportunities
 
-I am currently open to conversations about:
+I am open to **Senior / Staff-level** conversations involving:
 
-- **Senior / Staff Compiler Engineering**
-- **LLVM / GCC development**
-- **GPU Compiler Engineering**
-- **Systems Software Engineering**
-- **Linux / low-level platform engineering**
-- **Performance engineering**
-- **Open-source engineering**
+* Compiler Engineering
+* LLVM / GCC
+* GPU Compiler Engineering
+* Systems Software Engineering
+* Performance Engineering
+* Linux / Platform Engineering
+* Open-Source Engineering
 
-I am particularly interested in organizations where upstream open-source development is part of the engineering culture.
-
-Remote and international opportunities are welcome.
-
----
-
-## Contact & Links
-
-- **GitHub:** [github.com/Opriego](https://github.com/Opriego)
-- **LLVM contributions:** [Pull requests by Opriego](https://github.com/llvm/llvm-project/pulls?q=is%3Apr+author%3AOpriego)
-- **LinkedIn:** Add your LinkedIn URL here
-- **Email:** Add your preferred professional email here
+**Remote and international opportunities are welcome.**
 
 ---
 
